@@ -1,5 +1,6 @@
 import os
 import base64
+import json
 from cryptography.fernet import Fernet
 
 def get_key(env_var):
@@ -98,7 +99,8 @@ class IsolatedMessageBus:
             batch_plaintext.append(session_fernet.decrypt(encrypted_resp).decode('utf-8'))
             
         # Re-encrypt bundle with BLUE_KEY
-        bundle_bytes = str(batch_plaintext).encode('utf-8')
+        bundle_json = json.dumps(batch_plaintext)
+        bundle_bytes = bundle_json.encode('utf-8')
         blue_encrypted = self.blue_fernet.encrypt(bundle_bytes)
         
         # Produce to blue.evaluation
