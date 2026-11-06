@@ -49,10 +49,9 @@ class IsolatedMessageBus:
         # 2. Re-encrypt with LLM_KEY
         llm_encrypted = self.llm_fernet.encrypt(plaintext)
 
-        # 3. Publish to llm.requests
+        # 3. Publish to llm.requests (only session_id in headers, no session_key)
         headers = [
             ("session_id", session_id.encode()),
-            ("session_key", session_key_str.encode())
         ]
         await self.produce("llm.requests", llm_encrypted, headers=headers)
         

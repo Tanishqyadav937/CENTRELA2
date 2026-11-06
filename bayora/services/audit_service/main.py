@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import logging
 from dotenv import load_dotenv
 load_dotenv() # Load from .env file
 
@@ -11,6 +12,10 @@ from psycopg2.extras import RealDictCursor
 import threading
 from fastapi import FastAPI
 from aiokafka import AIOKafkaConsumer
+from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 
@@ -148,12 +153,6 @@ class TamperEvidentLedger:
                 return True, chain_length, current_prev
 
 ledger = TamperEvidentLedger()
-app = FastAPI()
-
-@app.get("/verify")
-async def verify_audit():
-    valid, length, head = ledger.verify()
-    return {"valid": valid, "chain_length": length, "head_hash": head}
 
 async def consume_audit_events():
     consumer = AIOKafkaConsumer(
@@ -179,6 +178,21 @@ async def consume_audit_events():
     finally:
         await consumer.stop()
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: validate required keys
+    required_keys = ["AUDIT_SALT", "AUDIT_SIGNING_KEY_B64", "JWT_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    
     asyncio.create_task(consume_audit_events())
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/verify")
+async def verify_audit():
+    valid, length, head = ledger.verify()
+    return {"valid": valid, "chain_length": length, "head_hash": head}

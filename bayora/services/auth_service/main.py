@@ -4,10 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
 import jwt
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr
 from cryptography.fernet import Fernet
-import os
+from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")
@@ -16,7 +21,17 @@ TOKEN_EXPIRY_MINUTES = 60
 CONFIG_ENCRYPTION_KEY = os.getenv("CONFIG_ENCRYPTION_KEY", Fernet.generate_key().decode())
 cipher = Fernet(CONFIG_ENCRYPTION_KEY.encode())
 
-app = FastAPI(title="Centinela Auth & Config Service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: validate required keys
+    required_keys = ["JWT_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    yield
+
+app = FastAPI(title="Centinela Auth & Config Service", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

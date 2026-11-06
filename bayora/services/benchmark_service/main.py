@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import logging
 import requests
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,9 @@ from contextlib import asynccontextmanager
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from bayora.services.benchmark_service.database import db
 from bayora.datasets.loaders.common import DatasetLoader
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 SESSION_MANAGER_URL = os.getenv("SESSION_MANAGER_URL", "http://localhost:8000")
@@ -113,6 +117,14 @@ async def consume_reports():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global kafka_producer
+    
+    # Startup: validate required keys
+    required_keys = ["JWT_SECRET", "SERVICE_SHARED_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    
     try:
         kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
         await kafka_producer.start()

@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -8,6 +9,9 @@ from cryptography.fernet import Fernet
 from bayora.ml.classifiers.defense import DefenseClassifier
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 import time
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_key(env_var):
     key = os.getenv(env_var)
@@ -86,6 +90,14 @@ async def consume_blue_evaluations():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global consumer_task, kafka_producer
+    
+    # Startup: validate required keys
+    required_keys = ["BLUE_KEY", "JWT_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    
     try:
         kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
         await kafka_producer.start()

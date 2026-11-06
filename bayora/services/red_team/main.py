@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,9 @@ from cryptography.fernet import Fernet
 from bayora.ml.attack_generators.engine import AdversarialPromptEngine
 from bayora.datasets.loaders.common import get_combined_dataset, DatasetLoader
 from aiokafka import AIOKafkaProducer
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_key(env_var):
     key = os.getenv(env_var)
@@ -27,6 +31,14 @@ stop_events: dict[str, asyncio.Event] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global kafka_producer
+    
+    # Startup: validate required keys
+    required_keys = ["RED_KEY", "JWT_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    
     try:
         kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
         await kafka_producer.start()

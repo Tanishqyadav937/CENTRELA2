@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 from dotenv import load_dotenv
 load_dotenv() # Load from .env file
 
@@ -9,6 +10,9 @@ from bayora.services.llm_proxy.inference import SandboxedInference
 from bayora.services.llm_proxy.bus import LLMProxyBus
 from contextlib import asynccontextmanager
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 inference_engine = SandboxedInference()
@@ -50,6 +54,14 @@ async def consume_llm_requests():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global producer, consumer_task
+    
+    # Startup: validate required keys
+    required_keys = ["LLM_KEY", "JWT_SECRET"]
+    missing_keys = [key for key in required_keys if not os.getenv(key)]
+    if missing_keys:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
+    logger.info("✅ All required keys configured")
+    
     try:
         producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
         await producer.start()
