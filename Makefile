@@ -30,7 +30,7 @@ keys:
 
 test:
 	@echo "Running All Tests..."
-	pytest tests/integration -v
+	PYTHONPATH=. python3 -m pytest tests/integration -v
 
 clean:
 	@echo "Destroying Infrastructure..."
