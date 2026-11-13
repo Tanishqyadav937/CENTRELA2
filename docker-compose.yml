@@ -52,6 +52,7 @@ services:
       kafka-topics.sh --bootstrap-server kafka:9092 --create --topic classifications --partitions 3 --replication-factor 1 --if-not-exists
       kafka-topics.sh --bootstrap-server kafka:9092 --create --topic benchmark.reports --partitions 3 --replication-factor 1 --if-not-exists
       kafka-topics.sh --bootstrap-server kafka:9092 --create --topic audit.events --partitions 3 --replication-factor 1 --if-not-exists
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --topic audit.events.dlq --partitions 3 --replication-factor 1 --if-not-exists
       kafka-topics.sh --bootstrap-server kafka:9092 --create --topic session.progress --partitions 3 --replication-factor 1 --if-not-exists
       kafka-topics.sh --bootstrap-server kafka:9092 --create --topic security.violations --partitions 3 --replication-factor 1 --if-not-exists
       '
