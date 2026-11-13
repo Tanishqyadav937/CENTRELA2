@@ -74,11 +74,19 @@ async def lifespan(app: FastAPI):
     global kafka_producer, consumer_task_responses, consumer_task_prompts
     
     # Startup: validate required keys
-    required_keys = ["RED_KEY", "BLUE_KEY", "LLM_KEY", "MASTER_KEY", "JWT_SECRET", "SERVICE_SHARED_SECRET"]
+    required_keys = ["RED_KEY", "BLUE_KEY", "LLM_KEY", "MASTER_KEY", "JWT_SECRET", "SERVICE_SHARED_SECRET", "LLM_PROXY_PUBLIC_KEY_B64"]
     missing_keys = [key for key in required_keys if not os.getenv(key)]
     if missing_keys:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing_keys)}")
     logger.info("✅ All required keys configured")
+    
+    # Load LLM Proxy public key
+    try:
+        from bayora.services.session_manager.bus import load_llm_proxy_public_key
+        load_llm_proxy_public_key()
+    except RuntimeError as e:
+        logger.error(f"❌ {e}")
+        raise
     
     try:
         kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
@@ -87,9 +95,9 @@ async def lifespan(app: FastAPI):
         audit_log.set_producer(kafka_producer) # Wire up audit publisher
         consumer_task_responses = asyncio.create_task(consume_llm_responses())
         consumer_task_prompts = asyncio.create_task(consume_red_prompts())
-        print("✅ Session Manager connected to Kafka (listening to red.prompts & llm.responses)")
+        logger.info("✅ Session Manager connected to Kafka (listening to red.prompts & llm.responses)")
     except Exception as e:
-        print(f"⚠️ Could not connect to Kafka: {e}. Running in mock mode.")
+        logger.warning(f"⚠️ Could not connect to Kafka: {e}. Running in mock mode.")
         message_bus.kafka_producer = None
         audit_log.set_producer(None)
     

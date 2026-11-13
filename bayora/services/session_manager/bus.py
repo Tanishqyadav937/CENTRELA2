@@ -1,7 +1,14 @@
 import os
 import base64
 import json
+import logging
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_key(env_var):
     key = os.getenv(env_var)
@@ -12,6 +19,26 @@ def get_key(env_var):
 RED_KEY = get_key("RED_KEY")
 BLUE_KEY = get_key("BLUE_KEY")
 LLM_KEY = get_key("LLM_KEY")
+
+# Load LLM Proxy public key for session key wrapping (will be loaded in lifespan)
+LLM_PROXY_PUBLIC_KEY = None
+
+def load_llm_proxy_public_key():
+    """Load the LLM Proxy public key from environment."""
+    global LLM_PROXY_PUBLIC_KEY
+    
+    llm_proxy_pub_b64 = os.getenv("LLM_PROXY_PUBLIC_KEY_B64")
+    if not llm_proxy_pub_b64:
+        raise RuntimeError("Missing required environment variable: LLM_PROXY_PUBLIC_KEY_B64")
+    
+    try:
+        pub_key_der = base64.b64decode(llm_proxy_pub_b64)
+        public_key = serialization.load_der_public_key(pub_key_der, backend=default_backend())
+        logger.info("✅ Loaded LLM Proxy public key for session key wrapping")
+        LLM_PROXY_PUBLIC_KEY = public_key
+        return public_key
+    except Exception as e:
+        raise RuntimeError(f"Failed to load LLM Proxy public key: {e}")
 
 class IsolatedMessageBus:
     def __init__(self, audit_log, kafka_producer=None, batch_size=5):
@@ -49,13 +76,30 @@ class IsolatedMessageBus:
         # 2. Re-encrypt with LLM_KEY
         llm_encrypted = self.llm_fernet.encrypt(plaintext)
 
-        # 3. Publish to llm.requests (only session_id in headers, no session_key)
+        # 3. Wrap the session key with LLM Proxy's public key using RSA-OAEP
+        try:
+            session_key_bytes = session_key_str.encode() if isinstance(session_key_str, str) else session_key_str
+            wrapped_session_key = LLM_PROXY_PUBLIC_KEY.encrypt(
+                session_key_bytes,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
+            )
+            wrapped_session_key_b64 = base64.b64encode(wrapped_session_key).decode()
+        except Exception as e:
+            logger.error(f"❌ Failed to wrap session key: {e}")
+            raise
+
+        # 4. Publish to llm.requests (wrapped_session_key in headers, NO plaintext session_key)
         headers = [
             ("session_id", session_id.encode()),
+            ("wrapped_session_key", wrapped_session_key_b64.encode()),
         ]
         await self.produce("llm.requests", llm_encrypted, headers=headers)
         
-        # 4. Audit Log
+        # 5. Audit Log
         self.audit_log.append("PROMPT_SENT", "red-team", session_id, plaintext)
 
     async def handle_llm_response(self, session_id: str, encrypted_response: bytes):

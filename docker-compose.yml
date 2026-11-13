@@ -70,9 +70,13 @@ services:
       - "8000:8000"
     environment:
       KAFKA_BROKER: kafka:9092
-      RED_KEY: ${RED_KEY}
-      BLUE_KEY: ${BLUE_KEY}
-      LLM_KEY: ${LLM_KEY}
+      RED_KEY: ${RED_KEY:?RED_KEY is required}
+      BLUE_KEY: ${BLUE_KEY:?BLUE_KEY is required}
+      LLM_KEY: ${LLM_KEY:?LLM_KEY is required}
+      MASTER_KEY: ${MASTER_KEY:?MASTER_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      SERVICE_SHARED_SECRET: ${SERVICE_SHARED_SECRET:?SERVICE_SHARED_SECRET is required}
+      LLM_PROXY_PUBLIC_KEY_B64: ${LLM_PROXY_PUBLIC_KEY_B64:?LLM_PROXY_PUBLIC_KEY_B64 is required}
 
   audit-service:
     build: .
@@ -89,6 +93,9 @@ services:
     environment:
       KAFKA_BROKER: kafka:9092
       POSTGRES_HOST: postgres
+      AUDIT_SALT: ${AUDIT_SALT:?AUDIT_SALT is required}
+      AUDIT_SIGNING_KEY_B64: ${AUDIT_SIGNING_KEY_B64:?AUDIT_SIGNING_KEY_B64 is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   benchmark-service:
     build: .
@@ -120,7 +127,8 @@ services:
       - "8003:8003"
     environment:
       KAFKA_BROKER: kafka:9092
-      RED_KEY: ${RED_KEY}
+      RED_KEY: ${RED_KEY:?RED_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   blue-team:
     build: .
@@ -134,7 +142,8 @@ services:
       - "8001:8001"
     environment:
       KAFKA_BROKER: kafka:9092
-      BLUE_KEY: ${BLUE_KEY}
+      BLUE_KEY: ${BLUE_KEY:?BLUE_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   llm-proxy:
     build:
@@ -151,7 +160,9 @@ services:
       - "8002:8002"
     environment:
       KAFKA_BROKER: kafka:9092
-      LLM_KEY: ${LLM_KEY}
+      LLM_KEY: ${LLM_KEY:?LLM_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      LLM_PROXY_PRIVATE_KEY_B64: ${LLM_PROXY_PRIVATE_KEY_B64:?LLM_PROXY_PRIVATE_KEY_B64 is required}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       MOCK_LLM: ${MOCK_LLM:-0}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
@@ -166,7 +177,7 @@ services:
       - "8004:8004"
     environment:
       MONGO_URI: mongodb://mongodb:27017
-      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   mongodb:
     image: mongo:latest
@@ -187,7 +198,7 @@ services:
       - "8011:8011"
     environment:
       KAFKA_BROKER: kafka:9092
-      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   gateway:
     image: nginx:alpine
