@@ -1,6 +1,6 @@
 # Bayora Deployment Makefile
 
-.PHONY: deploy clean test keys build
+.PHONY: deploy clean test test-track1 keys build
 
 build:
 	@echo "Building Universal Docker Image..."
@@ -36,3 +36,6 @@ clean:
 	@echo "Destroying Infrastructure..."
 	cd bayora/infra/terraform && terraform destroy -auto-approve
 	kubectl delete -f bayora/infra/k8s/namespaces/namespaces.yaml
+
+test-track1:
+	PYTHONPATH=. python3 -m pytest tests/integration/test_session_manager.py tests/integration/test_monitoring.py -v
