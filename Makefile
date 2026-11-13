@@ -30,10 +30,7 @@ keys:
 
 test:
 	@echo "Running All Tests..."
-	PYTHONPATH=. pytest bayora/services/session_manager/test_session_manager.py \
-	           bayora/services/llm_proxy/test_llm_proxy.py \
-	           bayora/ml/evaluation/test_pipelines.py \
-	           bayora/monitoring/test_monitoring.py
+	pytest tests/integration -v
 
 clean:
 	@echo "Destroying Infrastructure..."
