@@ -59,7 +59,9 @@ services:
 
   # Base Microservice services (example for session-manager)
   session-manager:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.session_manager.main:app", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
       kafka:
@@ -79,7 +81,9 @@ services:
       LLM_PROXY_PUBLIC_KEY_B64: ${LLM_PROXY_PUBLIC_KEY_B64:?LLM_PROXY_PUBLIC_KEY_B64 is required}
 
   audit-service:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.audit_service.main:app", "--host", "0.0.0.0", "--port", "8005"]
     depends_on:
       kafka:
@@ -98,7 +102,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   benchmark-service:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.benchmark_service.main:app", "--host", "0.0.0.0", "--port", "8006"]
     depends_on:
       kafka:
@@ -116,7 +122,9 @@ services:
       RED_TEAM_URL: http://red-team:8003
 
   red-team:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.red_team.main:app", "--host", "0.0.0.0", "--port", "8003"]
     depends_on:
       kafka:
@@ -131,7 +139,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
   blue-team:
-    build: .
+    build:
+      context: .
+      target: ml
     command: ["uvicorn", "bayora.services.blue_team.main:app", "--host", "0.0.0.0", "--port", "8001"]
     depends_on:
       kafka:
@@ -148,8 +158,7 @@ services:
   llm-proxy:
     build:
       context: .
-      args:
-        EXTRA_REQUIREMENTS: requirements-llm.txt
+      target: ml
     command: ["uvicorn", "bayora.services.llm_proxy.main:app", "--host", "0.0.0.0", "--port", "8002"]
     depends_on:
       kafka:
@@ -169,7 +178,9 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
 
   auth-service:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.auth_service.main:app", "--host", "0.0.0.0", "--port", "8004"]
     depends_on:
       - mongodb
@@ -187,7 +198,9 @@ services:
       - mongodb_data:/data/db
 
   audit-gateway:
-    build: .
+    build:
+      context: .
+      target: light
     command: ["uvicorn", "bayora.services.audit_gateway.main:app", "--host", "0.0.0.0", "--port", "8011"]
     depends_on:
       kafka:
